@@ -4,6 +4,7 @@ FROM students s JOIN student_courses sc
 ON s.id = sc.student_id
 JOIN courses c
 ON sc.course_id = c.id;
+LIMIT 10
 
 /* Найти студентов, у которых средняя оценка по курсам выше, чем у любого другого студента в их группе. */
 WITH avg_grade_std AS
@@ -20,3 +21,4 @@ FROM (SELECT * FROM
 		GROUP BY ags.group_id) max_grade 
 	JOIN avg_grade_std ags
 	ON max_grade.max = ags.avg_grade)
+LIMIT 10

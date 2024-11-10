@@ -1,3 +1,7 @@
+/* Если честно, я не уверен в необходимости создавать в данных таблицах PK - id.
+Мне кажется, можно было бы оставить в каждой таблице по два поля и сделать составные ключи.
+Просто потому что при обращении к таблицам, мы не будем использовать ID.*/
+
 CREATE TABLE student_courses (
 	id SERIAL PRIMARY KEY,
     student_id INTEGER REFERENCES students(id),
@@ -46,14 +50,27 @@ SELECT s.id, first_name, last_name, c.name
 FROM students s JOIN student_courses sc
 ON s.id = sc.student_id
 JOIN courses c
-ON sc.course_id = c.id;
+ON sc.course_id = c.id
+LIMIT 10;
 
+-- Надеюсь, отсутствие HAVING - не проблема --
 /* Найти студентов, у которых средняя оценка по курсам выше, чем у любого другого студента в их группе. */
 WITH avg_grade_std AS
 (SELECT student_id, s.first_name, s.last_name, group_id, AVG(grade) avg_grade
 FROM (students s JOIN course_grades cg ON s.id = cg.student_id)
 GROUP BY student_id, first_name, last_name, group_id)
 
+WITH max_grade_in_group AS
+(SELECT group_id, MAX(grade) max_grade, COUNT(student_id) count_std
+FROM avg_grade_std
+GROUP BY group_id)
+
+SELECT student_id, first_name, last_name, max_grade grade, group_id 
+FROM max_grade_in_group mgig JOIN students s
+								ON ags.student_id = s.id
+WHERE count_std < 2
+
+	
 SELECT student_id, first_name, last_name, ROUND(avg_grade,2) grade, group_id 
 FROM (SELECT * FROM
 		(SELECT MAX(avg_grade)
@@ -63,12 +80,25 @@ FROM (SELECT * FROM
 		GROUP BY ags.group_id) max_grade 
 	JOIN avg_grade_std ags
 	ON max_grade.max = ags.avg_grade)
+LIMIT 10;
+	
+SELECT student_id, first_name, last_name, ROUND(avg_grade,2) grade, group_id 
+FROM (SELECT * FROM
+		(SELECT MAX(avg_grade)
+		FROM avg_grade_std ags 
+		JOIN students s
+		ON ags.student_id = s.id
+		GROUP BY ags.group_id) max_grade 
+	JOIN avg_grade_std ags
+	ON max_grade.max = ags.avg_grade)
+LIMIT 10;
 
 -- Подсчитать количество студентов на каждом курсе. --
 SELECT course_id, COUNT(student_id) count_students
 FROM student_courses
 GROUP BY course_id
-ORDER BY count_students DESC;
+ORDER BY count_students DESC
+LIMIT 10;
 
 -- Найти среднюю оценку на каждом курсе. --
 SELECT course_id, name, avg_grade
@@ -77,3 +107,4 @@ FROM
 FROM course_grades
 GROUP BY course_id) ag JOIN courses c
 ON ag.course_id = c.id
+LIMIT 10;
