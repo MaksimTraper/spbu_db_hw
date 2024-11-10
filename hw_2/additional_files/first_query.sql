@@ -6,19 +6,29 @@ JOIN courses c
 ON sc.course_id = c.id;
 LIMIT 10
 
-/* Найти студентов, у которых средняя оценка по курсам выше, чем у любого другого студента в их группе. */
-WITH avg_grade_std AS
-(SELECT student_id, s.first_name, s.last_name, group_id, AVG(grade) avg_grade
-FROM (students s JOIN course_grades cg ON s.id = cg.student_id)
-GROUP BY student_id, first_name, last_name, group_id)
+/* Найти студентов, у которых средняя оценка по курсам выше, чем у любого другого студента в их группе.
+P.S: надеюсь, ворох CTE - не проблема. По идее, как я читал, это обычно способствует 
+повышению производительности + запросы становятся более читаемыми */
 
-SELECT student_id, first_name, last_name, ROUND(avg_grade,2) grade, group_id 
-FROM (SELECT * FROM
-		(SELECT MAX(avg_grade)
-		FROM avg_grade_std ags 
-		JOIN students s
-		ON ags.student_id = s.id
-		GROUP BY ags.group_id) max_grade 
-	JOIN avg_grade_std ags
-	ON max_grade.max = ags.avg_grade)
-LIMIT 10
+WITH avg_grade_std AS (
+SELECT s.first_name, s.last_name, s.group_id, s.id student_id, AVG(cg.grade) AS avg_grade
+FROM students s
+JOIN course_grades cg ON s.id = cg.student_id
+GROUP BY s.id, s.first_name, s.last_name, s.group_id),
+	
+max_avg_grade_std AS (
+SELECT group_id, MAX(avg_grade) AS max_avg_grade
+FROM avg_grade_std
+GROUP BY group_id),
+	
+top_students AS (
+SELECT ags.student_id, ags.first_name, ags.last_name, ags.group_id, ags.avg_grade
+FROM avg_grade_std AS ags
+JOIN max_avg_grade_std AS mags 
+ON ags.group_id = mags.group_id AND ags.avg_grade = mags.max_avg_grade)
+
+SELECT *
+FROM top_students
+GROUP BY group_id, student_id, first_name, last_name, avg_grade
+HAVING COUNT(student_id) = 1
+LIMIT 10;
